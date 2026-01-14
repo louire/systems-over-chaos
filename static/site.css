@@ -2,13 +2,15 @@
   --bg:#ffffff;
   --card:#f8fafc;
   --border:#e5e7eb;
-  --text:#0f172a;
+  --text:#0b1220;
   --muted:#64748b;
   --blue:#1d4ed8;
   --blue2:#93c5fd;
+  --shadow: 0 10px 30px rgba(2,6,23,.06);
 }
 
 *{box-sizing:border-box}
+html,body{height:100%}
 body{
   margin:0;
   background:var(--bg);
@@ -17,51 +19,147 @@ body{
 }
 
 .container{max-width:980px;margin:0 auto;padding:28px 18px}
-.nav{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
-.brand{font-weight:800;letter-spacing:.2px}
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+}
+.brand{
+  font-weight:900;
+  letter-spacing:.2px;
+  color:var(--text);
+}
+.meta{color:var(--muted);font-size:13px}
+
 .card{
   background:var(--card);
   border:1px solid var(--border);
-  border-radius:14px;
-  padding:16px;
+  border-radius:16px;
+  padding:22px;
+  box-shadow: var(--shadow);
 }
-.meta{color:var(--muted);font-size:13px}
-.tag{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);margin-right:6px}
 
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-textarea{
-  width:100%;
-  min-height:62vh;
-  padding:12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  outline:none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size:13px;
-}
-textarea:focus{border-color:var(--blue2)}
-.btn{
+.divider{height:1px;background:var(--border);margin:18px 0}
+
+.tag-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.tag{
   display:inline-block;
-  padding:10px 14px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:3px 10px;
+  font-size:12px;
+  color:var(--muted);
+  background:#fff;
+}
+
+.post-title{
+  margin:0;
+  font-size:36px;
+  line-height:1.1;
+  letter-spacing:-.6px;
+}
+
+/* ---- Prose (Markdown) ---- */
+.prose{
+  font-size:16px;
+  line-height:1.75;
+  color:var(--text);
+}
+
+.prose p{margin:0 0 14px}
+.prose h1,.prose h2,.prose h3,.prose h4{
+  margin:26px 0 10px;
+  line-height:1.2;
+  letter-spacing:-.4px;
+}
+.prose h2{font-size:24px}
+.prose h3{font-size:20px}
+.prose h4{font-size:18px}
+
+.prose ul,.prose ol{margin:0 0 14px 22px}
+.prose li{margin:6px 0}
+
+.prose blockquote{
+  margin:18px 0;
+  padding:12px 14px;
+  border-left:4px solid var(--blue2);
+  background:#fff;
   border-radius:12px;
+  color:var(--muted);
+}
+
+.prose hr{
+  border:none;
+  border-top:1px solid var(--border);
+  margin:22px 0;
+}
+
+/* Inline code */
+.prose code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .92em;
+  background: rgba(148,163,184,.18);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+/* Code blocks */
+.prose pre{
+  margin:18px 0;
+  padding:14px;
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#0b1220;
+  color:#e5e7eb;
+}
+.prose pre code{
+  background:transparent;
+  padding:0;
+  color:inherit;
+}
+
+/* Images */
+.prose img{
+  max-width:100%;
+  height:auto;
+  display:block;
+  margin:16px auto;
+  border-radius:14px;
   border:1px solid var(--border);
   background:#fff;
-  cursor:pointer;
 }
-.btn-primary{
-  background:var(--blue);
-  color:#fff;
-  border-color:transparent;
-}
-.btn-primary:hover{filter:brightness(0.95)}
-input, select{
+
+/* Tables */
+.prose table{
   width:100%;
-  padding:10px 12px;
-  border-radius:12px;
+  border-collapse:collapse;
+  margin:18px 0;
+  background:#fff;
   border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
 }
-hr{border:none;border-top:1px solid var(--border);margin:18px 0}
-article img{max-width:100%}
-pre{overflow:auto;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff}
+.prose th, .prose td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  font-size:14px;
+}
+.prose thead th{
+  background:rgba(148,163,184,.14);
+  color:var(--text);
+}
+.prose tr:last-child td{border-bottom:none}
+
+.footer{margin-top:18px;text-align:center}
+
+/* Responsive */
+@media (max-width: 720px){
+  .post-title{font-size:28px}
+  .card{padding:16px}
+}

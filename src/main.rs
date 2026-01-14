@@ -120,8 +120,23 @@ fn md_to_sanitized_html(md: &str) -> String {
     let mut raw_html = String::new();
     html::push_html(&mut raw_html, parser);
 
-    ammonia::clean(&raw_html)
+    ammonia::Builder::default()
+        .add_tags([
+            "img", "h1", "h2", "h3", "h4", "pre", "code", "blockquote",
+            "hr", "br", "table", "thead", "tbody", "tr", "th", "td",
+        ])
+        .add_generic_attributes([
+            "class", "id"
+        ])
+        .add_tag_attributes("img", ["src", "alt", "title", "loading"])
+        .add_tag_attributes("a", ["href", "title", "target", "rel"])
+        .add_tag_attributes("code", ["class"])
+        .add_allowed_classes("code", ["language-rust", "language-js", "language-json", "language-bash"])
+        .url_relative(ammonia::UrlRelative::PassThrough) // permite /img/...
+        .clean(&raw_html)
+        .to_string()
 }
+
 
 /* ------------------------ Templates ------------------------ */
 
@@ -132,12 +147,12 @@ struct PublicIndexTpl {
 }
 
 #[derive(Template)]
-#[template(path = "public_post.html")]
+#[template(path = "public_post.html", escape = "none")]
 struct PublicPostTpl {
     title: String,
     published_at: String,
     tags: Vec<String>,
-    html: MarkupDisplay<AskamaHtml, String>,
+    html: String,
 }
 
 #[derive(Template)]
@@ -226,7 +241,7 @@ async fn show_post(State(st): State<AppState>, Path(slug): Path<String>) -> impl
 
     let tpl = PublicPostTpl {
         title: row.get("title"),
-        html: MarkupDisplay::new_safe(html_str, AskamaHtml),
+        html: html_str,
         tags,
         published_at,
     };

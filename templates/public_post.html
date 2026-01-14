@@ -8,23 +8,30 @@
 </head>
 <body>
   <div class="container">
-    <div class="nav">
-      <div class="brand"><a href="/" style="color:inherit;text-decoration:none;">Systems Over Chaos</a></div>
+    <header class="topbar">
+      <a class="brand" href="/">Systems Over Chaos</a>
       <div class="meta">{{ published_at }}</div>
-    </div>
+    </header>
 
-    <div class="card">
-      <h1 style="margin-top:0">{{ title }}</h1>
-      <div>
+    <main class="card">
+      <h1 class="post-title">{{ title }}</h1>
+
+      <div class="tag-row">
         {% for t in tags %}
           <span class="tag">{{ t }}</span>
         {% endfor %}
       </div>
-      <hr/>
-      <article>
+
+      <div class="divider"></div>
+
+      <article class="prose">
         {{ html }}
       </article>
-    </div>
+    </main>
+
+    <footer class="footer">
+      <div class="meta">© Systems Over Chaos</div>
+    </footer>
   </div>
 </body>
 </html>
