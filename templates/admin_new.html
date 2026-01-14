@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>New Post · Admin</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="brand">New Post</div>
+      <div><a href="/admin">Back</a></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <form action="/admin/create" method="post">
+        <div class="grid2">
+          <div>
+            <label class="meta">Title</label>
+            <input name="title" placeholder="Systems Over Chaos: ..." required>
+          </div>
+          <div>
+            <label class="meta">Slug</label>
+            <input name="slug" placeholder="my-first-post" required>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:12px;">
+          <div>
+            <label class="meta">Tags (comma separated)</label>
+            <input name="tags" placeholder="rust, systems, notes">
+          </div>
+          <div>
+            <label class="meta">Status</label>
+            <select name="status">
+              <option value="draft">draft</option>
+              <option value="published">published</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="hidden" name="markdown" id="markdown_hidden">
+
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-primary" type="submit">Publish / Save</button>
+
+          <label class="btn" style="cursor:pointer;">
+            Upload image
+            <input id="img_input" type="file" accept="image/*" style="display:none;">
+          </label>
+          <span class="meta" id="img_status"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="meta">Markdown</div>
+        <hr/>
+        <textarea id="md" placeholder="# Write here..."></textarea>
+      </div>
+
+      <div class="card">
+        <div class="meta">Preview</div>
+        <hr/>
+        <div id="preview" class="meta">Start typing…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const md = document.getElementById('md');
+const preview = document.getElementById('preview');
+const hidden = document.getElementById('markdown_hidden');
+
+let t = null;
+async function refreshPreview() {
+  const text = md.value;
+  hidden.value = text;
+
+  const res = await fetch('/admin/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ markdown: text })
+  });
+
+  if (!res.ok) {
+    preview.textContent = 'Preview error';
+    return;
+  }
+  const data = await res.json();
+  preview.innerHTML = data.html;
+}
+
+md.addEventListener('input', () => {
+  if (t) clearTimeout(t);
+  t = setTimeout(refreshPreview, 300);
+});
+
+const imgInput = document.getElementById('img_input');
+const imgStatus = document.getElementById('img_status');
+
+imgInput.addEventListener('change', async () => {
+  const file = imgInput.files?.[0];
+  if (!file) return;
+
+  imgStatus.textContent = 'Uploading...';
+  const fd = new FormData();
+  fd.append('file', file);
+
+  const res = await fetch('/admin/upload-image', { method: 'POST', body: fd });
+  const url = await res.text();
+
+  if (!res.ok) {
+    imgStatus.textContent = 'Upload failed: ' + url;
+    return;
+  }
+
+  md.value += `\n\n![](${url})\n`;
+  imgStatus.textContent = 'Uploaded: ' + url;
+  refreshPreview();
+});
+</script>
+</body>
+</html>

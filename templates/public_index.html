@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Systems Over Chaos</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+  <div class="container">
+    <div class="nav">
+      <div class="brand">Systems Over Chaos</div>
+      <div><a href="/admin">Admin</a></div>
+    </div>
+
+    <div class="card">
+      <div class="meta">Latest posts</div>
+      <hr/>
+      {% for p in posts %}
+        <div style="margin-bottom:14px;">
+          <a href="/blog/{{ p.slug }}"><strong>{{ p.title }}</strong></a>
+          <div class="meta">{{ p.published_at }}</div>
+        </div>
+      {% endfor %}
+      {% if posts.len() == 0 %}
+        <div class="meta">No posts yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
