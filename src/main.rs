@@ -126,11 +126,10 @@ fn md_to_sanitized_html(md: &str) -> String {
             "hr", "br", "table", "thead", "tbody", "tr", "th", "td",
         ])
         .add_generic_attributes([
-            "class", "id"
+            "id"
         ])
         .add_tag_attributes("img", ["src", "alt", "title", "loading"])
-        .add_tag_attributes("a", ["href", "title", "target", "rel"])
-        .add_tag_attributes("code", ["class"])
+        .add_tag_attributes("a", ["href", "title", "target"])
         .add_allowed_classes("code", ["language-rust", "language-js", "language-json", "language-bash"])
         .url_relative(ammonia::UrlRelative::PassThrough) // permite /img/...
         .clean(&raw_html)
