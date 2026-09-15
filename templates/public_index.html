@@ -9,7 +9,7 @@
 <body>
   <div class="container">
     <div class="nav">
-      <div class="brand">Systems Over Chaos</div>
+      <div class="brand"><span class="status-dot"></span>Systems Over Chaos</div>
       <div><a href="/admin">Admin</a></div>
     </div>
 
@@ -17,13 +17,13 @@
       <div class="meta">Latest posts</div>
       <hr/>
       {% for p in posts %}
-        <div style="margin-bottom:14px;">
-          <a href="/blog/{{ p.slug }}"><strong>{{ p.title }}</strong></a>
-          <div class="meta">{{ p.published_at }}</div>
-        </div>
+        <a class="log-row" href="/blog/{{ p.slug }}">
+          <span class="log-row-title">{{ p.title }}</span>
+          <span class="timestamp">{{ p.published_at }}</span>
+        </a>
       {% endfor %}
       {% if posts.len() == 0 %}
-        <div class="meta">No posts yet.</div>
+        <div class="empty-state">No posts yet.</div>
       {% endif %}
     </div>
   </div>
