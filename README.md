@@ -1,3 +1,5 @@
+<img src="static/logo.png" alt="Systems Over Chaos" width="300">
+
 # Systems Over Chaos
 
 Small blog with a built-in admin panel. Write posts in Markdown, publish/unpublish them, upload images — all stored in Postgres, no external CMS.

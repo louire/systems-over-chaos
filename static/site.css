@@ -280,6 +280,55 @@ textarea{resize:vertical; line-height:1.5}
   vertical-align:middle;
 }
 
+.site-logo{
+  width:28px;
+  height:28px;
+  object-fit:contain;
+  display:inline-block;
+  vertical-align:middle;
+  margin-right:10px;
+  animation: logo-float 3.2s ease-in-out infinite;
+}
+@keyframes logo-float{
+  0%, 100%{ transform:translateY(0); }
+  50%{ transform:translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce){
+  .site-logo{ animation:none; }
+}
+
+/* Docked to the top-left corner of the viewport, stays put while the page
+   scrolls. Only kicks in once there's enough room beside the centered
+   container to not sit on top of the text (falls back to the inline
+   .site-logo above on narrower windows). Size scales with however much
+   gutter space is actually available, instead of staying a tiny fixed
+   size on huge screens. */
+.site-logo-fixed{ display:none; }
+@media (min-width: 1050px){
+  :root{
+    --logo-fixed-size: clamp(28px, calc((100vw - 980px) / 2 - 40px), 180px);
+  }
+  .site-logo{ display:none; }
+  .site-logo-fixed{
+    display:block;
+    position:fixed;
+    left:max(6px, calc((100vw - 980px) / 2 - var(--logo-fixed-size) - 32px));
+    top:28px;
+    width:var(--logo-fixed-size);
+    height:var(--logo-fixed-size);
+    object-fit:contain;
+    z-index:30;
+    animation: logo-float-fixed 3.4s ease-in-out infinite;
+  }
+}
+@keyframes logo-float-fixed{
+  0%, 100%{ transform:translateY(0); }
+  50%{ transform:translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce){
+  .site-logo-fixed{ animation:none; }
+}
+
 .timestamp{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size:12px;
