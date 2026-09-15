@@ -13,6 +13,12 @@
       <div class="meta">{{ published_at }}</div>
     </header>
 
+    {% if preview %}
+      <div class="card preview-banner">
+        Preview mode — this is how the post will look. Not visible to the public until published. <a href="/admin">Back to admin</a>
+      </div>
+    {% endif %}
+
     <main class="card">
       <h1 class="post-title">{{ title }}</h1>
 

@@ -13,11 +13,54 @@
       <div><a href="/">View site</a></div>
     </div>
 
+    <div class="card" style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div class="meta">authenticated.</div>
+      <a class="btn btn-primary" href="/admin/new">+ New Post</a>
+    </div>
+
     <div class="card">
-      <div class="meta">You're authenticated via Basic Auth.</div>
-      <hr/>
-      <a class="btn btn-primary" href="/admin/new">New Post</a>
-      <span class="meta" style="margin-left:10px;">Tip: upload images in the editor.</span>
+      {% if posts.len() == 0 %}
+        <div class="empty-state">No posts yet. Create your first one.</div>
+      {% else %}
+        {% for p in posts %}
+          <div class="post-row">
+            <div class="post-row-main">
+              <div class="post-row-title">
+                {{ p.title }}
+                {% if p.status == "published" %}
+                  <span class="badge badge-published">published</span>
+                {% else %}
+                  <span class="badge badge-draft">draft</span>
+                {% endif %}
+              </div>
+              <div class="post-row-slug">
+                /{{ p.slug }} &middot; updated {{ p.updated_at }}
+                {% if p.status == "published" %} &middot; published {{ p.published_at }}{% endif %}
+              </div>
+              {% if p.tags.len() > 0 %}
+                <div class="tag-row">
+                  {% for t in p.tags %}<span class="tag">{{ t }}</span>{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="post-row-actions">
+              {% if p.status == "published" %}
+                <a class="btn btn-sm" href="/blog/{{ p.slug }}" target="_blank" rel="noopener">View</a>
+                <form action="/admin/unpublish/{{ p.id }}" method="post">
+                  <button class="btn btn-sm" type="submit">Unpublish</button>
+                </form>
+              {% else %}
+                <a class="btn btn-sm" href="/admin/view/{{ p.id }}" target="_blank" rel="noopener">Preview</a>
+                <form action="/admin/publish/{{ p.id }}" method="post">
+                  <button class="btn btn-sm btn-primary" type="submit">Publish</button>
+                </form>
+              {% endif %}
+              <a class="btn btn-sm" href="/admin/edit/{{ p.id }}">Edit</a>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
 </body>

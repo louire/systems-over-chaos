@@ -62,8 +62,13 @@ async fn main() -> anyhow::Result<()> {
         // Admin
         .route("/admin", get(admin_home))
         .route("/admin/new", get(admin_new))
+        .route("/admin/edit/{id}", get(admin_edit))
+        .route("/admin/view/{id}", get(admin_view))
         .route("/admin/preview", post(admin_preview))
         .route("/admin/create", post(admin_create))
+        .route("/admin/update/{id}", post(admin_update))
+        .route("/admin/publish/{id}", post(admin_publish))
+        .route("/admin/unpublish/{id}", post(admin_unpublish))
         .route("/admin/upload-image", post(admin_upload_image))
         .with_state(state);
 
@@ -152,17 +157,31 @@ struct PublicPostTpl {
     published_at: String,
     tags: Vec<String>,
     html: String,
+    preview: bool,
 }
 
 #[derive(Template)]
 #[template(path = "admin_home.html")]
 struct AdminHomeTpl {
-    base_url: String,
+    posts: Vec<AdminPostRow>,
 }
 
 #[derive(Template)]
-#[template(path = "admin_new.html")]
-struct AdminNewTpl {}
+#[template(path = "admin_form.html")]
+struct AdminFormTpl {
+    heading: String,
+    back_href: String,
+    action: String,
+    submit_label: String,
+    title: String,
+    slug: String,
+    tags: String,
+    status: String,
+    markdown: String,
+    is_edit: bool,
+    view_href: String,
+    view_label: String,
+}
 
 /* ------------------------ Models ------------------------ */
 
@@ -171,6 +190,16 @@ struct PostCard {
     title: String,
     slug: String,
     published_at: String,
+}
+
+struct AdminPostRow {
+    id: String,
+    slug: String,
+    title: String,
+    status: String,
+    tags: Vec<String>,
+    published_at: String,
+    updated_at: String,
 }
 
 /* ------------------------ Public Handlers ------------------------ */
@@ -243,6 +272,7 @@ async fn show_post(State(st): State<AppState>, Path(slug): Path<String>) -> impl
         html: html_str,
         tags,
         published_at,
+        preview: false,
     };
 
     Html(tpl.render().unwrap()).into_response()
@@ -281,8 +311,47 @@ async fn admin_home(State(st): State<AppState>, headers: HeaderMap) -> impl Into
             .into_response();
     }
 
-    let base_url = env::var("BASE_URL").unwrap_or_else(|_| "".to_string());
-    Html(AdminHomeTpl { base_url }.render().unwrap()).into_response()
+    let rows = sqlx::query(
+        r#"
+        select id, slug, title, status, tags, published_at, updated_at
+        from posts
+        order by updated_at desc
+        "#,
+    )
+    .fetch_all(&st.db)
+    .await
+    .unwrap_or_default();
+
+    let posts: Vec<AdminPostRow> = rows
+        .into_iter()
+        .map(|r| {
+            let tags_json: serde_json::Value = r.get("tags");
+            let tags: Vec<String> = tags_json
+                .as_array()
+                .unwrap_or(&vec![])
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+
+            let published_at: Option<DateTime<Utc>> = r.try_get("published_at").ok();
+            let updated_at: DateTime<Utc> = r.get("updated_at");
+            let id: Uuid = r.get("id");
+
+            AdminPostRow {
+                id: id.to_string(),
+                slug: r.get("slug"),
+                title: r.get("title"),
+                status: r.get("status"),
+                tags,
+                published_at: published_at
+                    .map(|d| d.format("%Y-%m-%d").to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                updated_at: updated_at.format("%Y-%m-%d %H:%M").to_string(),
+            }
+        })
+        .collect();
+
+    Html(AdminHomeTpl { posts }.render().unwrap()).into_response()
 }
 
 async fn admin_new(State(st): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
@@ -295,7 +364,140 @@ async fn admin_new(State(st): State<AppState>, headers: HeaderMap) -> impl IntoR
             .into_response();
     }
 
-    Html(AdminNewTpl {}.render().unwrap()).into_response()
+    let tpl = AdminFormTpl {
+        heading: "New Post".to_string(),
+        back_href: "/admin".to_string(),
+        action: "/admin/create".to_string(),
+        submit_label: "Publish / Save".to_string(),
+        title: String::new(),
+        slug: String::new(),
+        tags: String::new(),
+        status: "draft".to_string(),
+        markdown: String::new(),
+        is_edit: false,
+        view_href: String::new(),
+        view_label: String::new(),
+    };
+
+    Html(tpl.render().unwrap()).into_response()
+}
+
+async fn admin_edit(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if !check_basic_auth(&headers, &st.admin_user, &st.admin_pass) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(header::WWW_AUTHENTICATE, r#"Basic realm="Systems Over Chaos Admin""#)],
+            "Unauthorized",
+        )
+            .into_response();
+    }
+
+    let Ok(uuid) = Uuid::parse_str(&id) else {
+        return (StatusCode::BAD_REQUEST, "Bad post id").into_response();
+    };
+
+    let row = sqlx::query(
+        r#"select slug, title, markdown, tags, status from posts where id = $1"#,
+    )
+    .bind(uuid)
+    .fetch_optional(&st.db)
+    .await
+    .unwrap();
+
+    let Some(row) = row else {
+        return (StatusCode::NOT_FOUND, "Not found").into_response();
+    };
+
+    let tags_json: serde_json::Value = row.get("tags");
+    let tags: String = tags_json
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let slug: String = row.get("slug");
+    let status: String = row.get("status");
+
+    let (view_href, view_label) = if status == "published" {
+        (format!("/blog/{slug}"), "View live".to_string())
+    } else {
+        (format!("/admin/view/{id}"), "Preview".to_string())
+    };
+
+    let tpl = AdminFormTpl {
+        heading: "Edit Post".to_string(),
+        back_href: "/admin".to_string(),
+        action: format!("/admin/update/{id}"),
+        submit_label: "Save changes".to_string(),
+        title: row.get("title"),
+        slug,
+        tags,
+        status,
+        markdown: row.get("markdown"),
+        is_edit: true,
+        view_href,
+        view_label,
+    };
+
+    Html(tpl.render().unwrap()).into_response()
+}
+
+async fn admin_view(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if !check_basic_auth(&headers, &st.admin_user, &st.admin_pass) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(header::WWW_AUTHENTICATE, r#"Basic realm="Systems Over Chaos Admin""#)],
+            "Unauthorized",
+        )
+            .into_response();
+    }
+
+    let Ok(uuid) = Uuid::parse_str(&id) else {
+        return (StatusCode::BAD_REQUEST, "Bad post id").into_response();
+    };
+
+    let row = sqlx::query(r#"select title, html, tags, published_at from posts where id = $1"#)
+        .bind(uuid)
+        .fetch_optional(&st.db)
+        .await
+        .unwrap();
+
+    let Some(row) = row else {
+        return (StatusCode::NOT_FOUND, "Not found").into_response();
+    };
+
+    let tags_json: serde_json::Value = row.get("tags");
+    let tags: Vec<String> = tags_json
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+
+    let published_at: Option<DateTime<Utc>> = row.try_get("published_at").ok();
+    let published_at = published_at
+        .map(|d| d.format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| "not published yet".to_string());
+
+    let tpl = PublicPostTpl {
+        title: row.get("title"),
+        html: row.get("html"),
+        tags,
+        published_at,
+        preview: true,
+    };
+
+    Html(tpl.render().unwrap()).into_response()
 }
 
 #[derive(Deserialize)]
@@ -391,6 +593,137 @@ async fn admin_create(
             "",
         )
             .into_response();
+    }
+
+    (StatusCode::SEE_OTHER, [(header::LOCATION, "/admin")], "").into_response()
+}
+
+async fn admin_update(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Form(f): Form<CreatePostForm>,
+) -> impl IntoResponse {
+    if !check_basic_auth(&headers, &st.admin_user, &st.admin_pass) {
+        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+    }
+
+    let Ok(uuid) = Uuid::parse_str(&id) else {
+        return (StatusCode::BAD_REQUEST, "Bad post id").into_response();
+    };
+
+    let slug = f.slug.trim().to_lowercase();
+    if slug.is_empty() {
+        return (StatusCode::BAD_REQUEST, "slug required").into_response();
+    }
+
+    let tags = f
+        .tags
+        .split(',')
+        .map(|t| t.trim())
+        .filter(|t| !t.is_empty())
+        .map(|t| serde_json::Value::String(t.to_string()))
+        .collect::<Vec<_>>();
+
+    let html = md_to_sanitized_html(&f.markdown);
+
+    let status = if f.status == "published" {
+        "published"
+    } else {
+        "draft"
+    };
+
+    // Keep the original published_at if it already had one (so republishing
+    // doesn't bump the date); only stamp it the first time a post goes live.
+    let res = sqlx::query(
+        r#"
+        update posts
+        set slug = $1,
+            title = $2,
+            markdown = $3,
+            html = $4,
+            tags = $5,
+            status = $6,
+            published_at = case
+                when $6 = 'published' and published_at is null then now()
+                else published_at
+            end,
+            updated_at = now()
+        where id = $7
+        "#,
+    )
+    .bind(&slug)
+    .bind(&f.title)
+    .bind(&f.markdown)
+    .bind(&html)
+    .bind(serde_json::Value::Array(tags))
+    .bind(status)
+    .bind(uuid)
+    .execute(&st.db)
+    .await;
+
+    if let Err(e) = res {
+        return (StatusCode::BAD_REQUEST, format!("db error: {e}")).into_response();
+    }
+
+    (StatusCode::SEE_OTHER, [(header::LOCATION, "/admin")], "").into_response()
+}
+
+async fn admin_publish(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if !check_basic_auth(&headers, &st.admin_user, &st.admin_pass) {
+        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+    }
+
+    let Ok(uuid) = Uuid::parse_str(&id) else {
+        return (StatusCode::BAD_REQUEST, "Bad post id").into_response();
+    };
+
+    let res = sqlx::query(
+        r#"
+        update posts
+        set status = 'published',
+            published_at = coalesce(published_at, now()),
+            updated_at = now()
+        where id = $1
+        "#,
+    )
+    .bind(uuid)
+    .execute(&st.db)
+    .await;
+
+    if let Err(e) = res {
+        return (StatusCode::BAD_REQUEST, format!("db error: {e}")).into_response();
+    }
+
+    (StatusCode::SEE_OTHER, [(header::LOCATION, "/admin")], "").into_response()
+}
+
+async fn admin_unpublish(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if !check_basic_auth(&headers, &st.admin_user, &st.admin_pass) {
+        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+    }
+
+    let Ok(uuid) = Uuid::parse_str(&id) else {
+        return (StatusCode::BAD_REQUEST, "Bad post id").into_response();
+    };
+
+    let res = sqlx::query(
+        r#"update posts set status = 'draft', updated_at = now() where id = $1"#,
+    )
+    .bind(uuid)
+    .execute(&st.db)
+    .await;
+
+    if let Err(e) = res {
+        return (StatusCode::BAD_REQUEST, format!("db error: {e}")).into_response();
     }
 
     (StatusCode::SEE_OTHER, [(header::LOCATION, "/admin")], "").into_response()
